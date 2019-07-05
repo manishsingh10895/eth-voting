@@ -149,9 +149,9 @@ const App = {
   render: async () => {
     App.renderLoadingState();
 
-    web3.eth.getAccounts((err, accounts) => {
+    web3.eth.getCoinbase((err, account) => {
       if (err === null) {
-        App.account = accounts[3];
+        App.account = account;
         $('#accountAddress').html("Your account: " + App.account);
       }
     });
