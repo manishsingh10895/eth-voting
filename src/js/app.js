@@ -1,4 +1,33 @@
-App = {
+const Utils = {
+  /**
+   * Converts a html string to a dom element
+   */
+  htmlToElement: (html) => {
+    html = html.trim();
+
+    let template = document.createElement('template');
+
+    template.innerHTML = html;
+
+    return template.content.firstChild;
+  },
+
+  /**
+   * Deletes all the childen of an element
+   * leaves it alone and empty
+   * 
+   * @param {HTMLElement} element
+   */
+  emptyElement: (element) => {
+    let children = element.children;
+    for (let i = 0; i < children.length; i++) {
+      children[i].parentNode.removeChild(children[i]);
+    }
+  }
+}
+
+
+const App = {
   web3Provider: null,
   contracts: {},
   account: '0x0',
@@ -33,6 +62,11 @@ App = {
     $.getJSON("Election.json", (election) => {
       App.contracts.Election = TruffleContract(election);
       App.contracts.Election.setProvider(App.web3Provider);
+
+      /**
+       * Listen for ethereum blockchain voting events
+       */
+      App.listenForEvents();
 
       return App.render();
     })
@@ -78,12 +112,28 @@ App = {
 
       alert("Success: Vote casted Successfully");
 
-      window.location.reload();
+      App.render();
     } catch (e) {
       App._handleError(e);
     } finally {
       App.renderLoadedState();
     }
+  },
+
+  listenForEvents: async () => {
+    const election = await App.contracts.Election.deployed();
+
+    election.votedEvent({}, {
+      fromBlock: 0,
+      toBlock: 'latest'
+    }).watch((err, event) => {
+      if (err) { return App._handleError(err); }
+
+      setTimeout(() => {
+        console.log(event);
+        App.render();
+      }, 4000);
+    });
   },
 
   renderLoadingState() {
@@ -101,38 +151,59 @@ App = {
 
     web3.eth.getAccounts((err, accounts) => {
       if (err === null) {
-        App.account = accounts[1];
+        App.account = accounts[3];
         $('#accountAddress').html("Your account: " + App.account);
       }
     });
 
     const election = await App.contracts.Election.deployed();
-    const candidatesCount = await election.candidatesCount();
+    let candidatesCount = await election.candidatesCount();
+    candidatesCount = candidatesCount.toNumber();
 
-    let candidatesResults = $('#candidatesResults');
-    let candidatesSelect = $('#candidatesSelect');
-    candidatesResults.empty();
-    candidatesSelect.empty();
+    let candidatesResults = document.querySelector('#candidatesResults');
+    let candidatesSelect = document.querySelector('#candidatesSelect');
+
+    let candidates = [];
 
     try {
 
+
+
       for (let i = 1; i <= candidatesCount; i++) {
         const canArray = await election.candidates(i);
+        candidates.push(App._buildCandidate(canArray));
+      }
 
-        const { id, name, voteCount } = App._buildCandidate(canArray);
+      console.log(candidates.length);
+
+      Utils.emptyElement(candidatesResults);
+      Utils.emptyElement(candidatesSelect);
+
+      for (let i = 0; i < candidatesCount; i++) {
+        const { id, name, voteCount } = candidates[i];
+
+
 
         /**
          * Render candidate table row
          */
         var candidateTemplate = "<tr><th>" + id + "</th><td>" + name + "</td><td>" + voteCount + "</td></tr>"
-        candidatesResults.append(candidateTemplate);
+        let candidateEl = Utils.htmlToElement(candidateTemplate);
+        candidatesResults.append(candidateEl);
+
+        console.log("CANDIDATE FOR MLOPP");
+        console.log(candidatesResults.children);
 
         /**
          * render candidate select option
          */
         var candidateOption = "<option value='" + id + "' >" + name + "</ option>"
-        candidatesSelect.append(candidateOption);
+        let candidateOptionEl = Utils.htmlToElement(candidateOption);
+        candidatesSelect.append(candidateOptionEl);
       }
+
+      console.log("END");
+      console.log(candidatesResults.children.length);
 
       const hasVoted = await election.voters(App.account);
 
@@ -143,6 +214,7 @@ App = {
       if (hasVoted) {
         // $('form').hide();
       }
+
     } catch (e) {
       App._handleError(e);
     } finally {
