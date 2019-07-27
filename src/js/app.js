@@ -1,3 +1,5 @@
+let count = 0;
+
 const Utils = {
   /**
    * Converts a html string to a dom element
@@ -19,10 +21,19 @@ const Utils = {
    * @param {HTMLElement} element
    */
   emptyElement: (element) => {
-    let children = element.children;
-    for (let i = 0; i < children.length; i++) {
-      children[i].parentNode.removeChild(children[i]);
-    }
+
+    // let children = element.children;
+    // console.log("CHILDREN", children.length);
+    // for (let i = 0; i < children.length; i++) {
+    //   console.log("ITERATOR", i);
+    //   children[i].remove();
+    // }
+
+    // console.log("CHILDREN AFTER EMPTY");
+
+    // console.log(element.children);
+
+    element.innerHTML = "";
   }
 }
 
@@ -128,11 +139,10 @@ const App = {
       toBlock: 'latest'
     }).watch((err, event) => {
       if (err) { return App._handleError(err); }
-
-      setTimeout(() => {
-        console.log(event);
-        App.render();
-      }, 4000);
+      count++;
+      console.log("COUNT");
+      console.log(count);
+      App.render();
     });
   },
 
@@ -146,43 +156,35 @@ const App = {
     $('#loader').hide();
   },
 
-  render: async () => {
-    App.renderLoadingState();
-
-    web3.eth.getCoinbase((err, account) => {
-      if (err === null) {
-        App.account = account;
-        $('#accountAddress').html("Your account: " + App.account);
+  renderSync: () => {
+    let candidates = [
+      {
+        "id": "1",
+        "name": "Suresh",
+        "voteCount": "3"
+      },
+      {
+        "id": "2",
+        "name": "Ramesh",
+        "voteCount": "1"
       }
-    });
-
-    const election = await App.contracts.Election.deployed();
-    let candidatesCount = await election.candidatesCount();
-    candidatesCount = candidatesCount.toNumber();
+    ];
 
     let candidatesResults = document.querySelector('#candidatesResults');
     let candidatesSelect = document.querySelector('#candidatesSelect');
 
-    let candidates = [];
+    Utils.emptyElement(candidatesResults);
+    Utils.emptyElement(candidatesSelect);
 
-    try {
-
-
-
-      for (let i = 1; i <= candidatesCount; i++) {
-        const canArray = await election.candidates(i);
-        candidates.push(App._buildCandidate(canArray));
-      }
-
-      console.log(candidates.length);
-
-      Utils.emptyElement(candidatesResults);
-      Utils.emptyElement(candidatesSelect);
-
+    console.log("CANDIDATE FOR MLOPP");
+    console.log(candidatesResults.children);
+    setTimeout(() => {
       for (let i = 0; i < candidatesCount; i++) {
         const { id, name, voteCount } = candidates[i];
 
+        console.log("LOOP COUNT", i);
 
+        console.log(candidates.length);
 
         /**
          * Render candidate table row
@@ -191,8 +193,7 @@ const App = {
         let candidateEl = Utils.htmlToElement(candidateTemplate);
         candidatesResults.append(candidateEl);
 
-        console.log("CANDIDATE FOR MLOPP");
-        console.log(candidatesResults.children);
+
 
         /**
          * render candidate select option
@@ -201,6 +202,75 @@ const App = {
         let candidateOptionEl = Utils.htmlToElement(candidateOption);
         candidatesSelect.append(candidateOptionEl);
       }
+
+    }, 0);
+
+  },
+
+  render: async () => {
+    App.renderLoadingState();
+
+    web3.eth.getAccounts((err, account) => {
+      if (err === null) {
+        App.account = account[8];
+        $('#accountAddress').html("Your account: " + App.account);
+      }
+    });
+
+    const election = await App.contracts.Election.deployed();
+    let candidatesCount = await election.candidatesCount();
+    candidatesCount = candidatesCount.toNumber();
+
+    let candidates = [];
+
+    try {
+
+      for (let i = 1; i <= candidatesCount; i++) {
+        const canArray = await election.candidates(i);
+        candidates.push(App._buildCandidate(canArray));
+      }
+
+      console.log(candidates);
+      console.log(candidates.length);
+
+      let candidatesResults = document.querySelector('#candidatesResults');
+      let candidatesSelect = document.querySelector('#candidatesSelect');
+
+      setTimeout(() => {
+        Utils.emptyElement(candidatesResults);
+        Utils.emptyElement(candidatesSelect);
+
+        for (let i = 0; i < candidatesCount; i++) {
+          const { id, name, voteCount } = candidates[i];
+
+          console.log("LOOP COUNT", i);
+
+          console.log(candidates.length);
+
+          /**
+           * Render candidate table row
+           */
+          var candidateTemplate = "<tr><th>" + id + "</th><td>" + name + "</td><td>" + voteCount + "</td></tr>"
+          let candidateEl = Utils.htmlToElement(candidateTemplate);
+          candidatesResults.append(candidateEl);
+
+
+
+          /**
+           * render candidate select option
+           */
+          var candidateOption = "<option value='" + id + "' >" + name + "</ option>"
+          let candidateOptionEl = Utils.htmlToElement(candidateOption);
+          candidatesSelect.append(candidateOptionEl);
+        }
+      });
+
+
+      console.log("CANDIDATE FOR MLOPP");
+      console.log(candidatesResults.children);
+
+
+
 
       console.log("END");
       console.log(candidatesResults.children.length);
